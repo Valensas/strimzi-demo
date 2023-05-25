@@ -1,0 +1,97 @@
+## nginx ingress enable-ssl-passtrough
+# View replicas: kafka-topics --list --bootstrap-server kafka-bootstrap.example.com:443 --command-config /tmp/config.props | xargs -L1 kafka-topics --describe --bootstrap-server kafka-bootstrap.example.com:443 --command-config /tmp/config.props --topic
+
+# Create certificate with cert-manager (update domanins and issuer to your config)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kafka-demo
+spec:
+  secretName: kafka.tls
+  issuerRef:
+    name: letsencrypt
+    kind: ClusterIssuer
+    group: cert-manager.io
+  dnsNames:
+    - '*.example.com'
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: demo
+spec:
+  # Enable Cruise Control for rebalance
+  cruiseControl: {}
+  # Enable the topic operator to reconcile topics
+  entityOperator:
+    topicOperator: {}
+  kafka:
+    # Kafka server properties
+    config:
+      auto.create.topics.enable: false
+      default.replication.factor: 3
+      delete.topic.enable: false
+      min.insync.replicas: 2
+    listeners:
+      # Access from within the cluster
+      - name: internal
+        port: 9092
+        tls: false
+        type: internal
+      # Access from outside the cluster with load balancers
+      - name: externallb
+        port: 9093
+        tls: false
+        type: loadbalancer
+      # Access from outside the cluster with ingresses (update domains to your config)
+      - name: ingress
+        port: 9094
+        type: ingress
+        tls: true
+        configuration:
+          bootstrap:
+            host: kafka-bootstrap.example.com
+          brokers:
+          - broker: 0
+            host: kafka-0.example.com
+          - broker: 1
+            host: kafka-1.example.com
+          - broker: 2
+            host: kafka-2.example.com
+          brokerCertChainAndKey:
+            secretName: kafka.tls
+            certificate: tls.crt
+            key: tls.key
+    replicas: 3
+    # Kafka storage configuration
+    storage:
+      type: persistent-claim
+      size: 10G
+      deleteClaim: true
+  # Enable Kafka Exporter for metrics
+  kafkaExporter:
+    groupRegex: .*
+    topicRegex: .*
+  zookeeper:
+    replicas: 3
+    # Zookeeper storage configuration
+    storage:
+      deleteClaim: true
+      size: 1Gi
+      type: persistent-claim
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: test-topic-1
+  labels:
+    # Name of the Kafka this topic belongs
+    strimzi.io/cluster: demo
+spec:
+  # The topic properties
+  topicName: test-topic-1
+  partitions: 1000
+  replicas: 3
+  # Additional topic configuration
+  config:
+    retention.ms: 1209600000

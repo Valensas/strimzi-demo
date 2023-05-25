@@ -1,0 +1,48 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: demo
+spec:
+  entityOperator:
+    # Required to reconcile topics
+    topicOperator: {}
+  kafka:
+    config:
+      # Kafka server properties
+      auto.create.topics.enable: false
+      default.replication.factor: 3
+      delete.topic.enable: false
+      min.insync.replicas: 2
+    listeners:
+      # Access from within the Cluster
+      - name: internal
+        port: 9092
+        tls: false
+        type: internal
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 10G
+      deleteClaim: true
+  zookeeper:
+    replicas: 3
+    storage:
+      deleteClaim: true
+      size: 1Gi
+      type: persistent-claim
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: test-topic-1
+  labels:
+    # Name of the Kafka this topic belongs
+    strimzi.io/cluster: demo
+spec:
+  # The topic properties
+  topicName: test-topic-1
+  partitions: 1000
+  replicas: 3
+  # Additional topic configuration
+  config:
+    retention.ms: 1209600000

@@ -1,0 +1,8 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaRebalance
+metadata:
+  name: demo-rebalance
+  labels:
+    # Name of the cluster to rebalance
+    strimzi.io/cluster: demo
+spec: {}

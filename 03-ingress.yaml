@@ -1,0 +1,55 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: demo
+spec:
+  kafkaExporter:
+    groupRegex: .*
+    topicRegex: .*
+  entityOperator:
+    topicOperator: {}
+  kafka:
+    config:
+      auto.create.topics.enable: false
+      default.replication.factor: 3
+      delete.topic.enable: false
+      min.insync.replicas: 2
+    listeners:
+      - name: internal
+        port: 9092
+        tls: false
+        type: internal
+      - name: loadblancer
+        port: 9093
+        tls: false
+        type: loadbalancer
+      # Add ingress listener to access from outside the cluster
+      - name: ingress
+        port: 9094
+        type: ingress
+        tls: true
+        configuration:
+          bootstrap:
+            host: kafka-bootstrap.example.com
+          brokers:
+          - broker: 0
+            host: kafka-0.example.com
+          - broker: 1
+            host: kafka-1.example.com
+          - broker: 2
+            host: kafka-2.example.com
+          brokerCertChainAndKey:
+            secretName: kafka.tls
+            certificate: tls.crt
+            key: tls.key
+    replicas: 3
+    storage:
+      type: persistent-claim
+      size: 10G
+      deleteClaim: true
+  zookeeper:
+    replicas: 3
+    storage:
+      deleteClaim: true
+      size: 1Gi
+      type: persistent-claim

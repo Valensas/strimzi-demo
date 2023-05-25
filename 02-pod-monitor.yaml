@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: demo-kafka-exporter
+spec:
+  podMetricsEndpoints:
+    - interval: 10s
+      path: /metrics
+      targetPort: tcp-prometheus
+      scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka-exporter
